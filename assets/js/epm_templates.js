@@ -259,6 +259,28 @@ function epm_templates_document_ready () {
 
 
 
+
+	$('#button_undo_globals, #button_update_globals, #button_reset_globals').on('click', function()
+	{
+		const action = $(this).data('action');
+		if (action === undefined || action === null || action === '')
+		{
+			fpbxToast(_("Action not defined!"), '', 'error');
+			return false;
+		}
+		epm_template_custom_config(action, this);
+	});
+
+	$('#CfgGlobalTemplate')
+	.on('show.bs.modal', function (event) {
+		epm_template_custom_config('get', $(this), true);
+	});
+
+
+
+
+
+
 	
 
 	// //http://kevinbatdorf.github.io/liquidslider/examples/page1.html#right
@@ -273,15 +295,6 @@ function epm_templates_document_ready () {
 	// 	}
 	// });
 		
-	// //Al iniciar la apertura de la ventana
-	// $('#CfgGlobalTemplate').on('show.bs.modal', function (e) {
-	// 	epm_template_custom_config_get_global(e);	
-	// });
-	
-	// //Al finalizar la apertura de la ventana	$('#CfgGlobalTemplate').on('shown.bs.modal', function (e) { });
-	// //Antes de iniciar el cierre de la ventana	$('#CfgGlobalTemplate').on('hide.bs.modal', function (e) { });
-	// //Despues de Cerrar la ventana				$('#CfgGlobalTemplate').on('hidden.bs.modal', function (e) { });
-	
 	
 	
 	
@@ -416,8 +429,88 @@ function epm_templates_grid_FormatThAction(value, row, index)
 
 
 
+/*** TEMPLATE / CONFIG GLOBAL ***/
+function epm_template_custom_config(action, $elmnt, silent_mode = false)
+{
+	if (action === undefined || action === null)
+	{
+		// Default action
+		action = "";
+	}
+    let data = {
+        'module'	: "endpointman",
+        'module_sec': "epm_templates",
+        'module_tab': "edit",
+        'custom'	: $.getUrlVar('custom'),
+        'tid'		: $.getUrlVar('idsel')
+    };
+	switch (action)
+	{
+		case 'get':
+			data['command'] = 'custom_config_get_gloabl';
+		break;
 
+		case 'set':
+			data['command'] = 'custom_config_update_gloabl';
+			data['new_data'] = {
+				'tz'		 : epm_global_get_value_by_form("FormCfgGlobalTemplate", "tz"),
+				'ntp_server' : epm_global_get_value_by_form("FormCfgGlobalTemplate", "ntp_server"),
+				'srvip'		 : epm_global_get_value_by_form("FormCfgGlobalTemplate", "srvip"),
+				'config_loc' : epm_global_get_value_by_form("FormCfgGlobalTemplate", "config_loc"),
+				'server_type': epm_global_get_value_by_form("FormCfgGlobalTemplate", "server_type")
+			};
+		break;
 
+		case 'reset':
+			data['command'] = 'custom_config_reset_gloabl';
+		break;
+
+		default:
+			pbxtoast(sprintf(_("Invalid action '%s'!"), action), '', 'error');
+			return false;
+	}
+
+    $.ajax({
+        type: 'POST',
+        url: window.FreePBX.ajaxurl,
+        data: data,
+        dataType: 'json',
+        timeout: 60000,
+        error: function(xhr, ajaxOptions, thrownError)
+		{
+            fpbxToast(sprintf(_('ERROR AJAX (%s): %s'), xhr.status, thrownError), '', 'error');
+            return false;
+        },
+        success: function(data)
+		{
+			var show_message = (data.message !== undefined && data.message !== null && data.message !== "");
+            if (data.status)
+			{
+				switch(data.action)
+				{
+					case 'get':
+						epm_global_input_value_change_bt("#srvip", data.settings.srvip, false);
+						epm_global_input_value_change_bt("#server_type", data.settings.server_type, false);
+						epm_global_input_value_change_bt("#config_loc", data.settings.config_location, false);
+						epm_global_input_value_change_bt("#tz", data.settings.tz, false);
+						epm_global_input_value_change_bt("#ntp_server", data.settings.ntp, false);						
+					break;
+
+					case 'set':
+					break;
+
+					case 'reset':
+						epm_template_custom_config('get', $elmnt, true);
+					break;
+				}
+            }
+            if (show_message === true && silent_mode === false)
+			{
+            	fpbxToast(data.message, '', data.status ? 'success' : 'error');
+			}
+        }
+    });
+}
 
 
 
@@ -477,108 +570,6 @@ function epm_template_update_select_files_config (e) {
 // 	window.location = '?display=epm_templates&subpage=edit&custom='+row['custom']+'&idsel='+row['id'];
 // })
 
-
-
-function epm_template_custom_config_get_global(elmnt)
-{
-	$.ajax({
-		type: 'POST',
-		url: window.FreePBX.ajaxurl,
-		data: {
-			module: "endpointman",
-			module_sec: "epm_templates",
-			module_tab: "edit",
-			command: "custom_config_get_gloabl",
-			custom : $.getUrlVar('custom'),
-			tid : $.getUrlVar('idsel')
-		},
-		dataType: 'json',
-		timeout: 60000,
-		error: function(xhr, ajaxOptions, thrownError) {
-			fpbxToast('ERROR AJAX:' + thrownError,'ERROR (' + xhr.status + ')!','error');
-			return false;
-		},
-		success: function(data) {
-			if (data.status == true) 
-			{
-				epm_global_input_value_change_bt("#srvip", data.settings.srvip, false);
-				epm_global_input_value_change_bt("#server_type", data.settings.server_type, false);
-				epm_global_input_value_change_bt("#config_loc", data.settings.config_location, false);
-				epm_global_input_value_change_bt("#tz", data.settings.tz, false);
-				epm_global_input_value_change_bt("#ntp_server", data.settings.ntp, false);
-				
-				if (elmnt.name == "button_undo_globals") {
-					fpbxToast(data.message, '', 'success');
-				}
-			} 
-			else { fpbxToast(data.message, "Error!", 'error'); }
-		}
-	});
-}
-
-function epm_template_custom_config_update_global(elmnt)
-{
-	$.ajax({
-		type: 'POST',
-		url: window.FreePBX.ajaxurl,
-		data: {
-			module: "endpointman",
-			module_sec: "epm_templates",
-			module_tab: "edit",
-			command: "custom_config_update_gloabl",
-			custom : $.getUrlVar('custom'),
-			tid : $.getUrlVar('idsel'),
-			tz: epm_global_get_value_by_form("FormCfgGlobalTemplate","tz"),
-			ntp_server: epm_global_get_value_by_form("FormCfgGlobalTemplate","ntp_server"),
-			srvip: epm_global_get_value_by_form("FormCfgGlobalTemplate","srvip"),			
-			config_loc: epm_global_get_value_by_form("FormCfgGlobalTemplate","config_loc"),
-			server_type: epm_global_get_value_by_form("FormCfgGlobalTemplate","server_type")
-		},
-		dataType: 'json',
-		timeout: 60000,
-		error: function(xhr, ajaxOptions, thrownError) {
-			fpbxToast('ERROR AJAX:' + thrownError,'ERROR (' + xhr.status + ')!','error');
-			return false;
-		},
-		success: function(data) {
-			if (data.status == true) 
-			{
-				fpbxToast(data.message, '', 'success');
-			} 
-			else { fpbxToast(data.message, "Error!", 'error'); }
-		}
-	});	
-}
-
-function epm_template_custom_config_reset_global(elmnt)
-{
-	$.ajax({
-		type: 'POST',
-		url: window.FreePBX.ajaxurl,
-		data: {
-			module: "endpointman",
-			module_sec: "epm_templates",
-			module_tab: "edit",
-			command: "custom_config_reset_gloabl",
-			custom : $.getUrlVar('custom'),
-			tid : $.getUrlVar('idsel')
-		},
-		dataType: 'json',
-		timeout: 60000,
-		error: function(xhr, ajaxOptions, thrownError) {
-			fpbxToast('ERROR AJAX:' + thrownError,'ERROR (' + xhr.status + ')!','error');
-			return false;
-		},
-		success: function(data) {
-			if (data.status == true) 
-			{
-				fpbxToast(data.message, '', 'success');
-				epm_template_custom_config_get_global(elmnt);
-			} 
-			else { fpbxToast(data.message, "Error!", 'error'); }
-		}
-	});
-}
 
 
 

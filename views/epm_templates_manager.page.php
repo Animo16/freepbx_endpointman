@@ -147,8 +147,12 @@
 
 			</div>
 			<div class="modal-footer">
-				<button type="button" class="btn btn-danger" data-dismiss="modal"><i class='fa fa-times'></i> <?= _("Cancel")?></button>
-				<button type="button" class="btn btn-primary" id="modal_form_new_template_btn_add"><i class='fa fa-check'></i> <?= _("Add New Tempalte")?></button>
+				<button type="button" class="btn btn-danger" data-dismiss="modal">
+					<i class='fa fa-times'></i> <?= _("Cancel")?>
+				</button>
+				<button type="button" class="btn btn-primary" id="modal_form_new_template_btn_add">
+					<i class='fa fa-check'></i> <?= _("Add New Tempalte")?>
+				</button>
 			</div>
 		</div>
 	</div>

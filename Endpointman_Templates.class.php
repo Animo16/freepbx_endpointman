@@ -9,6 +9,8 @@
 
 namespace FreePBX\modules;
 
+require_once('lib/epm_templates.class.php');
+
 class Endpointman_Templates
 {
 	public $epm;
@@ -17,6 +19,7 @@ class Endpointman_Templates
 	public $config;
 	public $epm_config;
 	public $eda;
+	public $templates;
 
 	public function __construct($epm)
 	{
@@ -26,6 +29,7 @@ class Endpointman_Templates
 		$this->config  	  = $epm->freepbx->Config;
 		$this->epm_config = $epm->epm_config;
 		$this->eda 		  = $epm->eda;
+		$this->templates  = new Endpointman\Templates($epm);
 	}
 
 	public function ajaxRequest($req, &$setting, array $data)
@@ -107,15 +111,15 @@ class Endpointman_Templates
 					switch ($command)
 					{
 						case "custom_config_get_gloabl":
-							$retarr = $this->epm_template_custom_config_get_global();
+							$retarr = $this->epm_template_custom_config_global($data, "get");
 						break;
 						
 						case "custom_config_update_gloabl":
-							$retarr = $this->epm_template_custom_config_update_global();
+							$retarr = $this->epm_template_custom_config_global($data, "set");
 						break;
 						
 						case "custom_config_reset_gloabl":
-							$retarr = $this->epm_template_custom_config_reset_global();
+							$retarr = $this->epm_template_custom_config_global($data, "reset");
 						break;
 							
 						case "list_files_edit":
@@ -173,7 +177,6 @@ class Endpointman_Templates
 				"page" => '/views/epm_templates_editor.page.php'
 			);
 		}
-	
 	}
 
 	public function getRightNav($request, $params = array())
@@ -282,152 +285,172 @@ class Endpointman_Templates
 	}
 	
 	
-	
-	
-	public function epm_template_custom_config_get_global()
+	/**** FUNCIONES SEC MODULO "epm_template\editor" Dialog Config Global ****/
+	public function epm_template_custom_config_global(array $data, string $action)
 	{
-		if (! isset($_REQUEST['custom'])) {
-			$retarr = array("status" => false, "message" => _("No send Custom Value!"));
-		}
-		elseif (! isset($_REQUEST['tid'])) {
-			$retarr = array("status" => false, "message" => _("No send TID!"));
-		}
-		elseif (! is_numeric($_REQUEST['tid'])) {
-			$retarr = array("status" => false, "message" => _("TID is not number!"));
-		}
-		else 
+		if (! in_array($action, array("get","set","reset")))
 		{
-			$dget['custom'] = $_REQUEST['custom'];
-			$dget['tid'] = $_REQUEST['tid'];
-			
-			if($dget['custom'] == 0) {
-				//This is a group template
-		        $sql = 'SELECT global_settings_override FROM endpointman_template_list WHERE id = '.$dget['tid'];
-			} else {
-				//This is an individual template
-		        $sql = 'SELECT global_settings_override FROM endpointman_mac_list WHERE id = '.$dget['tid'];;
-			}
-			$settings = sql($sql, 'getOne');
+			return array("status" => false, "message" => sprintf(_("Action '%s' not valid!"), $action));
+		}
 
-			if ((isset($settings)) and (strlen($settings) > 0)) {
-				$settings = unserialize($settings);
-				//$settings['tz'] = FreePBX::Endpointman()->listTZ(FreePBX::Endpointman()->epm->getConfig("tz"));
-			} 
-			else {
-				$settings['srvip'] 			 = ""; //$this->epm->getConfig("srvip");
-				$settings['ntp'] 			 = ""; //$this->epm->getConfig("ntp");
-				$settings['config_location'] = ""; //$this->epm->getConfig("config_location");
-				$settings['tz'] 		 	 = $this->epm->getConfig("tz");
-				$settings['server_type'] 	 = $this->epm->getConfig("server_type");
-			}
-    		
-			$retarr = array("status" => true, "settings" => $settings, "message" => _("Global Config Read OK!"));
-			unset($dget);
-		}
-		return $retarr;
-	}
-	
-	
-	public function epm_template_custom_config_update_global ()
-	{
-		if (! isset($_REQUEST['custom'])) {
-			$retarr = array("status" => false, "message" => _("No send Custom Value!"));
-		}
-		elseif (! isset($_REQUEST['tid'])) {
-			$retarr = array("status" => false, "message" => _("No send TID!"));
-		}
-		elseif (! is_numeric($_REQUEST['tid'])) {
-			$retarr = array("status" => false, "message" => _("TID is not number!"));
-		}
-		else 
+		$request 		  = $data['request'] ?? [];
+		$request_args 	  = array("tid", "custom");
+		$request_args_int = array("tid");
+		$args_check 	  = $this->epm->system->check_request_args($request, $request_args, $request_args_int);
+
+		switch(true)
 		{
-			$dget['custom'] = $_REQUEST['custom'];
-			$dget['tid'] = $_REQUEST['tid'];
-			
-			
-			$_REQUEST['srvip'] = trim($_REQUEST['srvip']);  #trim whitespace from IP address
-			$_REQUEST['config_loc'] = trim($_REQUEST['config_loc']);  #trim whitespace from Config Location
-	
-			$settings_warning = "";
-			if (strlen($_REQUEST['config_loc']) > 0) {
-				//No trailing slash. Help the user out and add one :-)
-				if($_REQUEST['config_loc'][strlen($_REQUEST['config_loc'])-1] != "/") {
-					$_REQUEST['config_loc'] = $_REQUEST['config_loc'] ."/";
-				}
-				
-				if((isset($_REQUEST['config_loc'])) AND ($_REQUEST['config_loc'] != "")) {
-					if((file_exists($_REQUEST['config_loc'])) AND (is_dir($_REQUEST['config_loc']))) {
-						if(is_writable($_REQUEST['config_loc'])) {
-							$_REQUEST['config_loc'] = $_REQUEST['config_loc'];
-						} else {
-							$settings_warning = _("Directory Not Writable!");
-							$_REQUEST['config_loc'] = $this->epm->getConfig('config_location');
-						}
-					} else {
-						$settings_warning = _("Not a Vaild Directory");
-						$_REQUEST['config_loc'] = $this->epm->getConfig('config_location');
+			case (empty($args_check)):
+			case ($args_check === false):
+				return array("status" => false, "message" => _("Error in the process of checking the request arguments!"));
+
+			case ($args_check === true):
+				break;
+
+			case (is_string($args_check)):
+			default:
+				return array("status" => false, "message" => $args_check);
+		}
+
+		$tid 	= $request['tid'];
+		$custom = $request['custom'];
+		$msgerr = null;
+
+		if (empty($tid))
+		{
+			$msgerr = _("Template ID is not valid, the value is empty!");
+		}
+		else if (! is_numeric($tid))
+		{
+			$msgerr = sprintf(_("Template ID '%s' is not valid, the value is not a number!"), $tid);
+		}
+		else if ($tid < 1)
+		{
+			$msgerr = _("Template ID is not valid, the value is less than 1!");
+		}
+		if (! empty($msgerr))
+		{
+			return array("status" => false, "message" => $msgerr);
+		}
+
+		$return_data = [];
+		switch($action)
+		{
+			case "get":
+				$custom   = $custom == 1 ? true : false;
+				$settings = $this->templates->getConfigGlobal($tid, $custom);
+		
+				$settings['srvip'] 			 = $settings['srvip'] 			?? ""; 		//$this->epm->getConfig("srvip");
+				$settings['ntp'] 			 = $settings['ntp'] 			?? "";		//$this->epm->getConfig("ntp");
+				$settings['config_location'] = $settings['config_location'] ?? ""; 		//$this->epm->getConfig("config_location");
+				$settings['tz'] 		 	 = $settings['tz'] 				?? $this->epm->getConfig("tz");
+				$settings['server_type'] 	 = $settings['server_type'] 	?? $this->epm->getConfig("server_type");
+		
+				$return_data['message']  = _("Global Config Read OK!");
+				$return_data['settings'] = $settings;
+			break;
+
+			case "set":
+
+				$data_new = $request['new_data'] ?? [];
+				$data_new_args = array(
+					"srvip" => [				// Request Name, data in $request['new_data']
+						"type" => "ip",			// Type of Data
+						'bd'   => "srvip",		// Name of the BD
+					],
+					"config_loc" => [
+						"type" => "path",
+						'bd'   => "config_location",
+					],
+					"server_type" => [
+						"type" => "string",
+						'bd'   => "server_type",
+					],
+					"ntp_server" => [
+						"type" => "ip/hostname",
+						'bd'   => "ntp",
+					],
+					"tz" => [
+						"type" => "timezone",
+						'bd'   => "tz",
+					]
+				);
+
+				$settings_warning = null;
+				$settings = [];
+				foreach ($data_new_args as $arg => $value)
+				{
+					$settings[$value['bd']] = "";
+					if (empty($data_new[$arg]))
+					{
+						continue;
 					}
-				} else {
-					$settings_warning = _("No Configuration Location Defined!");
-					$_REQUEST['config_loc'] = $this->epm->getConfig('config_location');
+					switch($value['type'])
+					{
+						case "ip":
+						case "ip/hostname":
+							$ip = trim($data_new[$arg]);
+							if (! empty($ip))
+							{
+								$settings[$value['bd']] = $ip;
+							}
+						break;
+
+						case "path":
+							$path = trim($data_new[$arg]);
+							$config_loc = $this->epm->system->buildPath($path);
+							switch (true)
+							{
+								case empty($config_loc):
+									$settings_warning = _("Skip Firmware Directory: No Directory Specified!");
+								break;
+
+								case (! file_exists($config_loc)):
+								case (! is_dir($config_loc)):
+									$settings_warning = _("Skip Firmware Directory: Not a Valid Directory!");
+								break;
+
+								case (! is_writable($config_loc)):
+									$settings_warning = _("Skip Firmware Directory: Directory Not Writable!");
+								break;
+								default:
+									$settings[$value['bd']] = $config_loc;
+							}
+
+						break;
+
+						case "string":
+							$settings[$value['bd']] = $data_new[$arg] ?? "";
+						break;
+					
+						case "timezone":
+							$timezone = trim($data_new[$arg]);
+							try
+							{
+								new \DateTimeZone($timezone);
+								$settings[$value['bd']] = $timezone;
+							}
+							catch (\Exception $e)
+							{
+								continue;
+							}
+						break;
+					}
 				}
-			}
-			
-			$settings['config_location'] = $_REQUEST['config_loc'];
-			$settings['server_type'] 	 = $_REQUEST['server_type'] ?? "";	//REVISAR NO ESTABA ANTES
-			$settings['srvip'] 			 = $_REQUEST['srvip'] ?? "";
-			$settings['ntp'] 			 = $_REQUEST['ntp_server'] ?? "";
-			$settings['tz'] 			 = $_REQUEST['tz'] ?? "";
-			$settings_ser 				 = serialize($settings);
-			unset($settings);
-			
-			if($dget['custom'] == 0) {
-				//This is a group template
-				$sql = "UPDATE endpointman_template_list SET global_settings_override = '".addslashes($settings_ser)."' WHERE id = ".$dget['tid'];
-			} else {
-				//This is an individual template
-				$sql = "UPDATE endpointman_mac_list SET global_settings_override = '".addslashes($settings_ser)."' WHERE id = ".$dget['tid'];
-			}
-			unset($settings_ser);
-			sql($sql);
-			
-			if (strlen($settings_warning) > 0) { $settings_warning = " ".$settings_warning; }
-			$retarr = array("status" => true, "message" => _("Updated!").$settings_warning);
-			unset($dget);
+
+				$this->templates->setConfigGlobal($tid, $custom, $settings);
+				$return_data['message'] = sprintf("%s%s", _("Updated!"), empty($settings_warning) ? "" : " ".$settings_warning);
+			break;
+
+			case "reset":
+				$this->templates->setConfigGlobal($tid, $custom);
+				$return_data['message'] = _("Globals Reset to Default!");
+			break;
 		}
-		return $retarr;
-	}
-	
-	
-	public function epm_template_custom_config_reset_global()
-	{
-		if (! isset($_REQUEST['custom'])) {
-			$retarr = array("status" => false, "message" => _("No send Custom Value!"));
-		}
-		elseif (! isset($_REQUEST['tid'])) {
-			$retarr = array("status" => false, "message" => _("No send TID!"));
-		}
-		elseif (! is_numeric($_REQUEST['tid'])) {
-			$retarr = array("status" => false, "message" => _("TID is not number!"));
-		}
-		else 
-		{
-			$dget['custom'] = $_REQUEST['custom'];
-			$dget['tid'] = $_REQUEST['tid'];
-			
-			if($dget['custom'] == 0) {
-				//This is a group template
-				$sql = "UPDATE endpointman_template_list SET global_settings_override = NULL WHERE id = ".$dget['tid'];
-			} else {
-				//This is an individual template
-				$sql = "UPDATE endpointman_mac_list SET global_settings_override = NULL WHERE id = ".$dget['tid'];
-			}
-			sql($sql);
-			
-			$retarr = array("status" => true, "message" => _("Globals Reset to Default!"));
-			unset($dget);
-		}
-		return $retarr;
+
+		$return_data['status']  = true;
+		$return_data['action']  = $action;
+		return $return_data;
 	}
 	
 	

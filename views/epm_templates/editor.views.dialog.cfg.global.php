@@ -10,14 +10,17 @@
 
 
 
-<div class="modal fade" id="CfgGlobalTemplate" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-	<div class="modal-dialog modal-lg" role="document">
+<div class="modal fade" id="CfgGlobalTemplate" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false" aria-labelledby="modal-title" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered modal-lg" role="document">
 		<div class="modal-content">
 			<div class="modal-header">
-            	<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
 				<h4 class="modal-title"><?php echo _('End Point Configuration Manager')?></h4>
 			</div>
 			<div class="modal-body">
+				<div class="alert alert-info" role="alert">
+					<i class="fa  fa-hand-o-right fa-lg" aria-hidden="true"></i>
+  					<?php echo _("This configuration overrides the global settings for the terminals that use this template."); ?>
+				</div>
 				<form action="" id="FormCfgGlobalTemplate" name="FormCfgGlobalTemplate">
 
            
@@ -192,9 +195,25 @@
 				</form>
 			</div>
 			<div class="modal-footer">
-                <button type="button" class="btn btn-success" name="button_undo_globals" onclick="epm_template_custom_config_get_global(this)"><i class="fa fa-undo" aria-hidden="true"></i> <?php echo _('Reload Config')?></button>
-                <button type="button" class="btn btn-success" name="button_update_globals" onclick="epm_template_custom_config_update_global(this)"><i class="fa fa-floppy-o" aria-hidden="true"></i> <?php echo _('Update Global Overrides')?></button>
-				<button type="button" class="btn btn-danger" name="button_reset_globals" onclick="epm_template_custom_config_reset_global(this)"><i class="fa fa-refresh" aria-hidden="true"></i> <?php echo _('Reset Global Overrides to Default')?></button>
+				<div class="btn-toolbar d-flex justify-content-between w-100" role="toolbar">
+					<div class="btn-group mr-2" role="group">
+						<button type="button" class="btn btn-danger" data-dismiss="modal">
+							<i class='fa fa-times'></i> <?= _("Cancel")?>
+						</button>
+					</div>
+
+					<div class="btn-group" role="group">
+						<button type="button" class="btn btn-success" id="button_undo_globals" name="button_undo_globals" data-action="get">
+							<i class="fa fa-undo" aria-hidden="true"></i> <?= _('Undo')?>
+						</button>
+						<button type="button" class="btn btn-success" id="button_update_globals" name="button_update_globals" data-action="set">
+							<i class="fa fa-floppy-o" aria-hidden="true"></i> <?= _('Save')?>
+						</button>
+						<button type="button" class="btn btn-danger" id="button_reset_globals" name="button_reset_globals" data-action="reset">
+							<i class="fa fa-refresh" aria-hidden="true"></i> <?= _('Remove Custom Configuration')?>
+						</button>
+					</div>
+				</div>
 			</div>
 		</div><!-- /.modal-content -->
 	</div><!-- /.modal-dialog -->
