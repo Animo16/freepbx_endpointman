@@ -294,7 +294,7 @@ if(!class_exists('Services_JSON')) {
 	                return chr((0xF0 & (ord($utf8[0]) << 4))
 	                         | (0x0F & (ord($utf8[1]) >> 2)))
 	                     . chr((0xC0 & (ord($utf8[1]) << 6))
-	                         | (0x7F & ord($utf8{2})));
+	                         | (0x7F & ord($utf8[2])));
 	        }
 
 	        // ignoring UTF-32 for now, sorry
